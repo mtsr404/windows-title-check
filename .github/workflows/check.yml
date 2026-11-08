@@ -1,0 +1,14 @@
+name: windows-title-check
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File windows-title-check.ps1
