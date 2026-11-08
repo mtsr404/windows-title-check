@@ -6,9 +6,31 @@ permissions:
 jobs:
   check:
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
-      - name: Check
+      - name: Check from a path with a space while another Chrome is open
         shell: powershell
-        run: powershell -NoProfile -ExecutionPolicy Bypass -File windows-title-check.ps1
+        run: |
+          $folder = Join-Path $env:RUNNER_TEMP 'folder with space'
+          New-Item -ItemType Directory -Path $folder -Force | Out-Null
+          $env:TEMP = $folder
+          $env:TMP = $folder
+          Copy-Item windows-title-check.ps1 $folder
+
+          $ownerMarker = 'owner-browser'
+          function Get-OwnerProcessCount {
+            return @(Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($ownerMarker) }).Count
+          }
+          $ownerProfile = Join-Path $env:RUNNER_TEMP $ownerMarker
+          $owner = Start-Process "$env:ProgramFiles\Google\Chrome\Application\chrome.exe" -PassThru -ArgumentList @("--user-data-dir=`"$ownerProfile`"", '--no-first-run', '--no-default-browser-check', 'about:blank')
+          Start-Sleep -Seconds 8
+          $countBefore = Get-OwnerProcessCount
+
+          powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $folder 'windows-title-check.ps1') -AllowElevated
+          $code = $LASTEXITCODE
+
+          Write-Output "owner_chrome_alive=$(-not $owner.HasExited)"
+          Write-Output "owner_chrome_processes_before=$countBefore"
+          Write-Output "owner_chrome_processes_after=$(Get-OwnerProcessCount)"
+          exit $code
