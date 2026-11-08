@@ -116,26 +116,26 @@ public static class TitleCheck {
 '@
 
 [TitleCheck]::StartCountingForeground()
-$target = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Target')
+$targetProcess = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-Target')
 $noWindow = Start-Process powershell -PassThru -WindowStyle Hidden -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 25')
 
 $outcome = 'unreadable'
 $deadline = (Get-Date).AddSeconds(20)
 while ((Get-Date) -lt $deadline) {
-    $outcome = [TitleCheck]::Compare($target.Id, $ExpectedTitle)
+    $outcome = [TitleCheck]::Compare($targetProcess.Id, $ExpectedTitle)
     if ($outcome -eq 'match') { break }
     Start-Sleep -Milliseconds 250
 }
 Start-Sleep -Seconds 5
 
-$wrongTitle = [TitleCheck]::Compare($target.Id, 'title-check-wrong')
+$wrongTitle = [TitleCheck]::Compare($targetProcess.Id, 'title-check-wrong')
 $windowless = [TitleCheck]::Compare($noWindow.Id, $ExpectedTitle)
 $foreground = [TitleCheck]::StopCountingForeground()
 $lastInput = [TitleCheck]::CanReadLastInput()
 $elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $session = (Get-Process -Id $PID).SessionId
 
-Stop-Process -Id $target.Id -Force -ErrorAction SilentlyContinue
+Stop-Process -Id $targetProcess.Id -Force -ErrorAction SilentlyContinue
 Stop-Process -Id $noWindow.Id -Force -ErrorAction SilentlyContinue
 
 Write-Output "title=$outcome"
